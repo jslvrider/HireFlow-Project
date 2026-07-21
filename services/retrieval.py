@@ -4,9 +4,11 @@ from typing import Optional
 
 from dotenv import load_dotenv
 from google import genai
+from sentence_transformers import CrossEncoder
 from utils.resume_processing import get_embedding, get_pinecone_index
 
 load_dotenv()
+_cross_encoder = None
 
 
 def query_editing(query: Optional[str] = None, jd_text: Optional[str] = None) -> tuple[str, str]:
@@ -112,4 +114,26 @@ def retrieve_docs(impersonated_resume:str, top_k:int = 7) -> list[dict]:
 
     return normalized_matches
 
-    def rerank_docs(desired_role: str, candidates: list[dict], top_n: int = 3) -> list[dict]:
+
+def get_cross_encoder() -> CrossEncoder:
+    global _cross_encoder
+    if _cross_encoder is None:
+        _cross_encoder = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
+    return _cross_encoder    
+
+
+
+def rerank_docs(desired_role: str, candidates: list[dict], top_n: int = 3) -> list[dict]:
+    if not candidates:
+        return []
+    cross_encoder = get_cross_encoder()
+
+    pairs = [(desired_role, candidate["resume_summary"]) for candidate in candidates]
+    scores = cross_encoder.predict(pairs)
+
+    reranked = sorted(zip(scores, candidates), key=lambda pair: pair[0], reverse=True)
+
+    return [candidate for _, candidate in reranked[:top_n]]
+
+
+
