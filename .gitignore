@@ -1,0 +1,9 @@
+inner-bonus-327423-53f65465ef0d.json
+.env
+__pycache__/
+*.pyc
+resume_uploads/
+hireflow.db
+Resume_dataset/
+.vscode/
+test_processing.py

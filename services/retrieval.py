@@ -1,0 +1,115 @@
+import os
+import json
+from typing import Optional
+
+from dotenv import load_dotenv
+from google import genai
+from utils.resume_processing import get_embedding, get_pinecone_index
+
+load_dotenv()
+
+
+def query_editing(query: Optional[str] = None, jd_text: Optional[str] = None) -> tuple[str, str]:
+    """
+    Combines the optional user query and job description into an ideal intent
+    summary of the desired role, then generates a HyDE-style impersonated
+    resume summary for embedding against candidate resume summaries.
+
+    Args:
+        query (str): The user's query.
+        jd_text (str): The job description text.
+    Returns:
+        tuple[str, str]: (desired_role, impersonated_resume)
+    """
+    if not (query or "").strip() and not (jd_text or "").strip():
+        raise ValueError("query_editing requires a query, a job description, or both.")
+
+    api_key = os.environ["GEMINI_API_KEY"]
+    client = genai.Client(api_key=api_key)
+    model = os.getenv("GEMINI_MODEL_NAME", "gemini-3.5-flash")
+
+    prompt = f"""
+    You are helping a recruiter search a database of resume summaries.
+
+    You are given two OPTIONAL inputs: a free-text query and a job description.
+    At least one of them will be present.
+
+    User query:
+    {query or "(none provided)"}
+
+    Job description:
+    {jd_text or "(none provided)"}
+
+    Do two things and return ONLY valid JSON with exactly these two fields:
+
+    1. "desired_role": Combine the inputs above into a concise, ideal intent
+       summary of the role the user is looking to fill (or find), capturing
+       title, seniority, key skills, and responsibilities.
+
+    2. "impersonated_resume": Using a HyDE (Hypothetical Document Embeddings)
+       approach, write a hypothetical resume summary written as a pronoun-free professional summary in the style of a resume's summary section,
+       as if it were the professional summary section of an ideal candidate's
+       resume for this role. It should read like a real resume summary
+       (skills, experience, background) so it can be embedded and compared
+       against real candidate resume summaries.
+
+    Return this structure exactly:
+
+    {{
+    "desired_role": "",
+    "impersonated_resume": ""
+    }}
+    """
+
+    response = client.models.generate_content(
+        model=model,
+        contents=prompt,
+    )
+
+    result_text = response.text.strip()
+    result_text = result_text.replace("```json", "").replace("```", "").strip()
+    result = json.loads(result_text)
+
+    desired_role = result["desired_role"].strip()
+    impersonated_resume = result["impersonated_resume"].strip()
+
+    return desired_role, impersonated_resume
+
+
+
+def retrieve_docs(impersonated_resume:str, top_k:int = 7) -> list[dict]:
+    """
+    Retrieves relevant candidate resume summaries from Pinecone based on the
+    user's query and/or job description.
+
+    Args:
+        impersonated_resume (str): The impersonated resume summary.
+        top_k (int): The number of top results to return.
+    Returns:
+        list[dict]: A list of relevant candidate resume summaries with metadata.
+    """
+    
+    embedding = get_embedding(impersonated_resume)
+    index = get_pinecone_index()
+
+    results = index.query(
+        vector=embedding,
+        top_k=top_k,
+        namespace="resumes",
+        include_metadata=True,
+    )
+
+    normalized_matches = []
+    for match in results.matches:
+        metadata = match.metadata or {}
+        normalized_matches.append({
+            "email": metadata.get("email", match.id),   
+            "score": match.score,
+            "current_title": metadata.get("current_title", ""),
+            "file_link": metadata.get("file_link", ""),
+            "resume_summary": metadata.get("resume_summary", ""),
+        })
+
+    return normalized_matches
+
+    def rerank_docs(desired_role: str, candidates: list[dict], top_n: int = 3) -> list[dict]:
