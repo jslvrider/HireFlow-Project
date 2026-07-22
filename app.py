@@ -5,6 +5,7 @@ import streamlit as st
 
 from services.ingestion import ingest_resume
 from utils.database import create_database
+from services.retrieval import run_resume_rag_pipeline
 
 st.set_page_config(page_title="Resume Uploader", page_icon="📄", layout="centered")
 
@@ -53,13 +54,63 @@ def render_upload_section() -> None:
             except Exception as e:
                 st.error(f"Upload failed: {e}")
             
+def render_search_section() -> None:
+    st.subheader("Search Candidates")
 
+    query = st.text_input(
+        "What are you looking for?",
+        placeholder="e.g. senior accountant with financial reporting experience",
+    )
+    jd_text = st.text_area(
+        "Job description (optional)",
+        placeholder="Paste a job description here to refine the search.",
+        height=150,
+    )
+
+    if st.button("Search", use_container_width=True):
+        # query_editing raises if both are empty; guard here so the UI
+        # gives a friendly message instead of an exception.
+        if not query.strip() and not jd_text.strip():
+            st.error("Enter a search query, a job description, or both.")
+            return
+
+        with st.spinner("Searching candidates..."):
+            try:
+                candidates, desired_role = run_resume_rag_pipeline(
+                    query=query or None,
+                    jd_text=jd_text or None,
+                )
+            except Exception as e:
+                st.error(f"Search failed: {e}")
+                return
+
+        # Show what the pipeline actually searched for — collapsed by default.
+        with st.expander("Search details"):
+            st.write(desired_role)
+
+        if not candidates:
+            st.info("No matching candidates found. Try broadening your search.")
+            return
+
+        st.write(f"Top {len(candidates)} candidates:")
+        for candidate in candidates:
+            st.markdown(f"### {candidate['candidate_name']}")
+            st.caption(candidate.get("current_title", ""))
+            st.write(candidate.get("preview", ""))
+            # gs:// URIs aren't clickable in a browser — shown as text for now.
+            # TODO: convert to a signed HTTPS URL for real download links.
+            st.text(candidate.get("file_link", ""))
+            st.divider()
+
+            
 def main() -> None:
     create_database()
     st.title("Resume Upload Portal")
     render_login_section()
     st.divider()
     render_upload_section()
+    st.divider()
+    render_search_section()
 
 
 if __name__ == "__main__":
