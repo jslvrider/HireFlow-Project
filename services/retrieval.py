@@ -136,4 +136,11 @@ def rerank_docs(desired_role: str, candidates: list[dict], top_n: int = 3) -> li
     return [candidate for _, candidate in reranked[:top_n]]
 
 
+def generate_candidate_previews(candidates: list[dict], ) -> list[dict]:
+    """
+    Generates a preview of the top candidates, including their email, current title, and a snippet of their resume summary.
+
+    Args:
+        candidates (list[dict]): A list of candidate dictionaries.
+
 
