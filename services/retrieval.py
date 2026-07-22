@@ -205,3 +205,25 @@ def generate_candidate_previews(candidates: list[dict], desired_role: str) -> li
     return candidates
 
 
+def run_resume_rag_pipeline(query: Optional[str] = None,jd_text: Optional[str] = None,top_k: int = 7,top_n: int = 3,) -> tuple[list[dict], str]:
+    """
+    Runs the full resume retrieval and ranking pipeline.
+
+    Args:
+        query (str): The user's query.
+        jd_text (str): The job description text.
+        top_k (int): The number of top results to retrieve from Pinecone.
+        top_n (int): The number of top results to return after reranking.
+
+    Returns:
+        list[dict]: A list of top candidate dictionaries with metadata and previews.
+        str: The desired role summary generated from the query and job description."""
+
+    desired_role, impersonated_resume = query_editing(query=query, jd_text=jd_text)
+    candidates = retrieve_docs(impersonated_resume=impersonated_resume, top_k=top_k)
+    if not candidates:
+        return [], desired_role
+    reranked_candidates = rerank_docs(desired_role=desired_role, candidates=candidates, top_n=top_n)
+    final_candidates = generate_candidate_previews(candidates=reranked_candidates, desired_role=desired_role)
+
+    return final_candidates, desired_role
