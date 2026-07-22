@@ -105,6 +105,7 @@ def retrieve_docs(impersonated_resume:str, top_k:int = 7) -> list[dict]:
     for match in results.matches:
         metadata = match.metadata or {}
         normalized_matches.append({
+            "candidate_name": metadata.get("candidate_name", ""),
             "email": metadata.get("email", match.id),   
             "score": match.score,
             "current_title": metadata.get("current_title", ""),
@@ -136,11 +137,71 @@ def rerank_docs(desired_role: str, candidates: list[dict], top_n: int = 3) -> li
     return [candidate for _, candidate in reranked[:top_n]]
 
 
-def generate_candidate_previews(candidates: list[dict], ) -> list[dict]:
+def generate_candidate_previews(candidates: list[dict], desired_role: str) -> list[dict]:
     """
-    Generates a preview of the top candidates, including their email, current title, and a snippet of their resume summary.
+    Generates a recruiter-facing preview paragraph for each of the top
+    candidates, explaining why they fit the desired role, their strengths,
+    and any gaps. Uses a single LLM call for all candidates.
 
     Args:
         candidates (list[dict]): A list of candidate dictionaries.
+        desired_role (str): The desired role for which to generate previews.
+    Returns:
+        list[dict]: Each dict contains candidate_name, file_link,
+            current_title, resume_summary, score, and preview.
+    """
+    if not candidates:
+        return []
+
+    api_key = os.environ["GEMINI_API_KEY"]
+    client = genai.Client(api_key=api_key)
+    model = os.getenv("GEMINI_MODEL_NAME", "gemini-3.5-flash")
+
+    candidates_block = "\n\n".join(
+        f"Candidate email: {candidate.get('email', '')}\n"
+        f"Current title: {candidate.get('current_title', '')}\n"
+        f"Resume summary: {candidate.get('resume_summary', '')}"
+        for candidate in candidates
+    )
+
+    prompt = f"""
+    You are a recruiter assistant writing candidate previews for a hiring manager.
+
+    Desired role:
+    {desired_role}
+
+    Below are {len(candidates)} candidates. For EACH candidate, write a short
+    recruiter-facing paragraph explaining why this person fits the desired role, covering
+    their strengths and any notable gaps relative to the role.
+
+    {candidates_block}
+
+    Return ONLY valid JSON: a list with one object per candidate, each containing that
+    candidate's email and their preview.
+
+    [
+      {{"email": "", "preview": ""}}
+    ]
+    """
+
+    response = client.models.generate_content(
+        model=model,
+        contents=prompt,
+    )
+
+    result_text = response.text.strip()
+    result_text = result_text.replace("```json", "").replace("```", "").strip()
+    llm_response = json.loads(result_text)
+
+    for candidate in candidates:
+        candidate["preview"] = ""
+
+    by_email = {candidate["email"]: candidate for candidate in candidates}
+    for item in llm_response:
+        target = by_email.get(item.get("email"))
+        if target is not None:
+            target["preview"] = item["preview"].strip()
+
+    return candidates
 
 
