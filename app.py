@@ -51,6 +51,8 @@ def render_upload_section() -> None:
                 st.success(f"Resume {status} successfully.")
             
                 st.write(file_link)
+            except ValueError:
+                st.error("The AI returned an unexpected response. Please try again.")
             except Exception as e:
                 st.error(f"Upload failed: {e}")
             
@@ -80,6 +82,9 @@ def render_search_section() -> None:
                     query=query or None,
                     jd_text=jd_text or None,
                 )
+            except ValueError:
+                st.error("The AI returned an unexpected response. Please try again.")
+                return
             except Exception as e:
                 st.error(f"Search failed: {e}")
                 return

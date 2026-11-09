@@ -1,5 +1,4 @@
 import os
-import json
 from typing import Optional
 
 from dotenv import load_dotenv
@@ -7,6 +6,7 @@ from google import genai
 from sentence_transformers import CrossEncoder
 from utils.resume_processing import get_embedding, get_pinecone_index
 from google.genai import types
+from utils.llm_helpers import parse_json_response
 
 load_dotenv()
 _cross_encoder = None
@@ -70,9 +70,7 @@ def query_editing(query: Optional[str] = None, jd_text: Optional[str] = None) ->
         config=types.GenerateContentConfig(temperature=0),
     )
 
-    result_text = response.text.strip()
-    result_text = result_text.replace("```json", "").replace("```", "").strip()
-    result = json.loads(result_text)
+    result = parse_json_response(response.text)
 
     desired_role = result["desired_role"].strip()
     impersonated_resume = result["impersonated_resume"].strip()
@@ -195,9 +193,7 @@ def generate_candidate_previews(candidates: list[dict], desired_role: str) -> li
         contents=prompt,
     )
 
-    result_text = response.text.strip()
-    result_text = result_text.replace("```json", "").replace("```", "").strip()
-    llm_response = json.loads(result_text)
+    llm_response = parse_json_response(response.text)
 
     for candidate in candidates:
         candidate["preview"] = ""
@@ -232,4 +228,3 @@ def run_resume_rag_pipeline(query: Optional[str] = None, jd_text: Optional[str] 
     reranked_candidates = rerank_docs(desired_role=desired_role, candidates=candidates, top_n=top_n)
     final_candidates = generate_candidate_previews(candidates=reranked_candidates, desired_role=desired_role)
 
-    return final_candidates, desired_role

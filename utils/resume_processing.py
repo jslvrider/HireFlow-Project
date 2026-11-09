@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from google import genai
 import json
 from google.genai import types
+from utils.llm_helpers import parse_json_response
 from pinecone import Pinecone, ServerlessSpec
 
 
@@ -84,9 +85,7 @@ def extract_metadata(resume_text: str) -> dict:
 )
 
 
-    metadata_text = response.text.strip()
-    metadata_text = metadata_text.replace("```json", "").replace("```", "").strip()
-    resume_metadata = json.loads(metadata_text)
+    resume_metadata = parse_json_response(response.text)
     return resume_metadata
 
 
@@ -116,11 +115,25 @@ def get_pinecone_index():
     index = pc.Index(index_name)
     return index
 
-def upsert_resume_to_pinecone(email: str, uploaded_file, file_link: str) -> dict:
-     
+def prepare_resume(uploaded_file) -> tuple[dict, list[float]]:
+    """Extract text, metadata, and embedding without touching any storage."""
     resume_text = extract_text_from_file(uploaded_file)
     metadata = extract_metadata(resume_text)
     vector = get_embedding(metadata["resume_summary"])
+    return metadata, vector
+
+
+def upsert_resume_to_pinecone(
+    email: str,
+    uploaded_file,
+    file_link: str,
+    metadata: dict | None = None,
+    vector: list[float] | None = None,
+) -> dict:
+    # Callers that already ran prepare_resume pass metadata and vector in;
+    # otherwise compute them here.
+    if metadata is None or vector is None:
+        metadata, vector = prepare_resume(uploaded_file)
     index = get_pinecone_index()
     
     record = {
