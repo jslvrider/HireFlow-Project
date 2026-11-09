@@ -6,6 +6,7 @@ from dotenv import load_dotenv
 from google import genai
 from sentence_transformers import CrossEncoder
 from utils.resume_processing import get_embedding, get_pinecone_index
+from google.genai import types
 
 load_dotenv()
 _cross_encoder = None
@@ -66,6 +67,7 @@ def query_editing(query: Optional[str] = None, jd_text: Optional[str] = None) ->
     response = client.models.generate_content(
         model=model,
         contents=prompt,
+        config=types.GenerateContentConfig(temperature=0),
     )
 
     result_text = response.text.strip()
@@ -134,7 +136,11 @@ def rerank_docs(desired_role: str, candidates: list[dict], top_n: int = 3) -> li
 
     reranked = sorted(zip(scores, candidates), key=lambda pair: pair[0], reverse=True)
 
-    return [candidate for _, candidate in reranked[:top_n]]
+    top = []
+    for score, candidate in reranked[:top_n]:
+        candidate["rerank_score"] = float(score)
+        top.append(candidate)
+    return top
 
 
 def generate_candidate_previews(candidates: list[dict], desired_role: str) -> list[dict]:
@@ -205,7 +211,7 @@ def generate_candidate_previews(candidates: list[dict], desired_role: str) -> li
     return candidates
 
 
-def run_resume_rag_pipeline(query: Optional[str] = None,jd_text: Optional[str] = None,top_k: int = 7,top_n: int = 3,) -> tuple[list[dict], str]:
+def run_resume_rag_pipeline(query: Optional[str] = None, jd_text: Optional[str] = None, top_k: int = 7, top_n: int = 3,) -> tuple[list[dict], str]:
     """
     Runs the full resume retrieval and ranking pipeline.
 

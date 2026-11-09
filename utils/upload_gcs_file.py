@@ -23,7 +23,7 @@ def upload_file_gcs(pdf_path: str|Path) -> tuple [str, str]:
         blob.upload_from_filename(pdf_path)
     else:
         # Streamlit UploadedFile object — get filename from metadata, upload from memory
-        filename = pdf_path.name
+        filename = Path(pdf_path.name).name
         blob = bucket.blob(f"{doc_id}/{filename}")
         blob.upload_from_file(pdf_path)
 
