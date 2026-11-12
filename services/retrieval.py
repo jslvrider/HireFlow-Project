@@ -3,13 +3,12 @@ from typing import Optional
 
 from dotenv import load_dotenv
 from google import genai
-from sentence_transformers import CrossEncoder
-from utils.resume_processing import get_embedding, get_pinecone_index
+from utils.pinecone_store import get_embedding, get_pinecone_index
+from utils.reranker import get_cross_encoder
 from google.genai import types
 from utils.llm_helpers import parse_json_response
 
 load_dotenv()
-_cross_encoder = None
 
 
 def query_editing(query: Optional[str] = None, jd_text: Optional[str] = None) -> tuple[str, str]:
@@ -114,14 +113,6 @@ def retrieve_docs(impersonated_resume:str, top_k:int = 7) -> list[dict]:
         })
 
     return normalized_matches
-
-
-def get_cross_encoder() -> CrossEncoder:
-    global _cross_encoder
-    if _cross_encoder is None:
-        _cross_encoder = CrossEncoder("cross-encoder/ms-marco-MiniLM-L-6-v2")
-    return _cross_encoder    
-
 
 
 def rerank_docs(desired_role: str, candidates: list[dict], top_n: int = 3) -> list[dict]:
