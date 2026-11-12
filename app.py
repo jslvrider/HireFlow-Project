@@ -47,10 +47,10 @@ def render_upload_section() -> None:
 
         with st.spinner("Uploading resume..."):
             try:
-                file_link, status = ingest_resume(user_id, uploaded_file)
-                st.success(f"Resume {status} successfully.")
-            
-                st.write(file_link)
+                result = ingest_resume(user_id, uploaded_file)
+                st.success(f"Resume {result.status} successfully.")
+
+                st.write(result.file_link)
             except ValueError:
                 st.error("The AI returned an unexpected response. Please try again.")
             except Exception as e:

@@ -11,13 +11,20 @@ from utils.database import (
     update_resume_record,
 )
 import logging
+from typing import NamedTuple
 import streamlit as st
 
 logger = logging.getLogger(__name__)
 
 
+class IngestResult(NamedTuple):
+    """Outcome of a successful resume ingestion."""
 
-def ingest_resume(email: str, uploaded_file) -> tuple[str, str]:
+    file_link: str  # gs:// link to the newly stored resume
+    status: str  # "uploaded" for a new user, "updated" for a returning user
+
+
+def ingest_resume(email: str, uploaded_file) -> IngestResult:
     """
     Ingests a resume for a given email.
 
@@ -26,7 +33,8 @@ def ingest_resume(email: str, uploaded_file) -> tuple[str, str]:
         uploaded_file: The uploaded file object.
 
     Returns:
-        tuple[str, str]: A tuple containing the link to the uploaded file and the status message.
+        IngestResult: The link to the stored file and whether the resume was
+            newly "uploaded" or "updated".
     """
  
     old_link = get_file_link(email)
@@ -70,4 +78,4 @@ def ingest_resume(email: str, uploaded_file) -> tuple[str, str]:
         except Exception:
             logger.warning("Could not delete old blob %s", old_link, exc_info=True)
 
-    return file_link, status
+    return IngestResult(file_link=file_link, status=status)
