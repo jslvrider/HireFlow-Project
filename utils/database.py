@@ -1,13 +1,12 @@
 import os
 import sqlite3
 from contextlib import contextmanager
-from pathlib import Path
 from typing import Iterator, Optional
 
-DATABASE_PATH = Path("hireflow.db")
 
 def get_connection() -> sqlite3.Connection:
-    return sqlite3.connect(DATABASE_PATH)
+    # Read at call time so the path follows whatever the environment holds.
+    return sqlite3.connect(os.getenv("DB_PATH", "hireflow.db"))
 
 
 

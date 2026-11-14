@@ -4,10 +4,9 @@ import uuid
 from datetime import timedelta
 from pathlib import Path
 
-from dotenv import load_dotenv
+from google.auth.transport.requests import Request
 from google.cloud import storage
-
-load_dotenv()
+from google.oauth2 import service_account
 
 
 
@@ -18,21 +17,25 @@ def upload_file_gcs(pdf_path: str|Path) -> tuple [str, str]:
     client = storage.Client()
     bucket = client.bucket(bucket_name)
 
+    # Optional folder prefix (e.g. "prod") so environments can share a bucket.
+    prefix = os.getenv("GCS_PREFIX", "").strip("/")
+    key_prefix = f"{prefix}/" if prefix else ""
+
     if isinstance(pdf_path, (str, Path)):
         # local file path — get filename from path, upload directly from disk
         filename = Path(pdf_path).name
-        blob = bucket.blob(f"{doc_id}/{filename}")
+        blob = bucket.blob(f"{key_prefix}{doc_id}/{filename}")
         blob.upload_from_filename(pdf_path)
     else:
         # Streamlit UploadedFile object — get filename from metadata, upload from memory
         filename = Path(pdf_path.name).name
-        blob = bucket.blob(f"{doc_id}/{filename}")
+        blob = bucket.blob(f"{key_prefix}{doc_id}/{filename}")
         # Streamlit sets .type to the browser-reported MIME type; fall back to
         # guessing from the filename for plain file objects that lack it.
         content_type = getattr(pdf_path, "type", None) or mimetypes.guess_type(filename)[0]
         blob.upload_from_file(pdf_path, content_type=content_type)
 
-    file_link = f"gs://{bucket_name}/{doc_id}/{filename}"
+    file_link = f"gs://{bucket_name}/{key_prefix}{doc_id}/{filename}"
     return doc_id, file_link
 
 def delete_old_blob(old_link: str) -> None:
@@ -43,11 +46,36 @@ def delete_old_blob(old_link: str) -> None:
     bucket.blob(blob_name).delete()
 
 
+def _signing_kwargs(client: storage.Client) -> dict:
+    """Extra generate_signed_url kwargs needed to sign with the client's credentials.
+
+    Service-account key credentials can sign locally, so they need nothing extra.
+    Other credentials (e.g. Cloud Run's metadata-server identity) sign through the
+    IAM signBlob API, which needs the account email and a fresh access token.
+    """
+    # The client exposes no public accessor for its credentials.
+    credentials = client._credentials
+    if isinstance(credentials, service_account.Credentials):
+        return {}
+
+    if not credentials.valid or not credentials.token:
+        credentials.refresh(Request())
+
+    email = getattr(credentials, "service_account_email", None)
+    if not email:
+        raise RuntimeError(
+            "Credentials cannot sign URLs: use a service account key or run "
+            "as a service account."
+        )
+    return {"service_account_email": email, "access_token": credentials.token}
+
+
 def generate_signed_url(gcs_path: str, minutes: int = 60) -> str:
     """Return a v4 signed GET URL for a gs:// path, valid for `minutes`.
 
-    Needs credentials that can sign (a service account key); raises if the
-    client's credentials cannot.
+    Signs locally with a service account key, or through IAM when running as
+    a service account without one (see _signing_kwargs). Raises if the
+    client's credentials can do neither.
     """
     if not gcs_path.startswith("gs://"):
         raise ValueError(f"Not a GCS path: {gcs_path!r}")
@@ -70,5 +98,6 @@ def generate_signed_url(gcs_path: str, minutes: int = 60) -> str:
         version="v4",
         expiration=timedelta(minutes=minutes),
         method="GET",
+        **_signing_kwargs(client),
         **extra,
     )

@@ -1,11 +1,8 @@
 import os
 
-from dotenv import load_dotenv
 from google import genai
 from google.genai import types
 from pinecone import Pinecone, ServerlessSpec
-
-load_dotenv()
 
 
 def get_embedding(text: str) -> list[float]:

@@ -2,15 +2,11 @@ import os
 import tempfile
 from pathlib import Path
 from langchain_community.document_loaders import PyPDFLoader, Docx2txtLoader, TextLoader
-from dotenv import load_dotenv
 from google import genai
 import json
 from utils.llm_helpers import parse_json_response
 from utils.pinecone_store import get_embedding, get_pinecone_index
 
-
-load_dotenv()
- 
 
 def extract_text_from_file(uploaded_file) -> str:
     
@@ -134,6 +130,6 @@ def upsert_resume_to_pinecone(
             }
     
 
-    index.upsert(vectors=[record], namespace="resumes")
+    index.upsert(vectors=[record], namespace=os.getenv("PINECONE_NAMESPACE", "resumes"))
 
     return {"email": email, "status": True}

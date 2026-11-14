@@ -1,14 +1,11 @@
 import os
 from typing import Optional
 
-from dotenv import load_dotenv
 from google import genai
 from utils.pinecone_store import get_embedding, get_pinecone_index
 from utils.reranker import get_cross_encoder
 from google.genai import types
 from utils.llm_helpers import parse_json_response
-
-load_dotenv()
 
 
 def query_editing(query: Optional[str] = None, jd_text: Optional[str] = None) -> tuple[str, str]:
@@ -96,7 +93,7 @@ def retrieve_docs(impersonated_resume:str, top_k:int = 7) -> list[dict]:
     results = index.query(
         vector=embedding,
         top_k=top_k,
-        namespace="resumes",
+        namespace=os.getenv("PINECONE_NAMESPACE", "resumes"),
         include_metadata=True,
     )
 

@@ -1,6 +1,13 @@
 
 from __future__ import annotations
 
+from dotenv import load_dotenv
+
+# Load secrets once, before any other project import can read them.
+# Each call does nothing if its file doesn't exist, so this works in both places.
+load_dotenv()                          # laptop: your .env
+load_dotenv("/secrets/primary.env")    # Cloud Run: the mounted secret
+
 import streamlit as st
 
 from services.ingestion import ingest_resume

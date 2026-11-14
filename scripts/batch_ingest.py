@@ -1,5 +1,11 @@
 from pathlib import Path
 
+from dotenv import load_dotenv
+
+# Standalone entry point (doesn't go through app.py), so load secrets here too.
+load_dotenv()                          # laptop: your .env
+load_dotenv("/secrets/primary.env")    # Cloud Run: the mounted secret
+
 from services.ingestion import ingest_resume
 
 
