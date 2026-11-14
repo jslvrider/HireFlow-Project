@@ -218,4 +218,5 @@ def run_resume_rag_pipeline(query: Optional[str] = None, jd_text: Optional[str] 
         return [], desired_role
     reranked_candidates = rerank_docs(desired_role=desired_role, candidates=candidates, top_n=top_n)
     final_candidates = generate_candidate_previews(candidates=reranked_candidates, desired_role=desired_role)
+    return final_candidates, desired_role
 

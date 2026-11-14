@@ -5,6 +5,7 @@ import streamlit as st
 
 from services.ingestion import ingest_resume
 from utils.database import create_database
+from utils.upload_gcs_file import generate_signed_url
 from services.retrieval import run_resume_rag_pipeline
 
 st.set_page_config(page_title="Resume Uploader", page_icon="📄", layout="centered")
@@ -87,7 +88,7 @@ def render_search_section() -> None:
                 return
             except Exception as e:
                 st.error(f"Search failed: {e}")
-                return
+                st.exception(e)   # shows the full traceback in the page, for development
 
         # Show what the pipeline actually searched for — collapsed by default.
         with st.expander("Search details"):
@@ -102,9 +103,13 @@ def render_search_section() -> None:
             st.markdown(f"### {candidate['candidate_name']}")
             st.caption(candidate.get("current_title", ""))
             st.write(candidate.get("preview", ""))
-            # gs:// URIs aren't clickable in a browser — shown as text for now.
-            # TODO: convert to a signed HTTPS URL for real download links.
-            st.text(candidate.get("file_link", ""))
+            # Stored links are gs:// paths, which browsers can't open. Sign a
+            # short-lived HTTPS URL at render time; keep the stored path as is.
+            try:
+                signed_url = generate_signed_url(candidate.get("file_link", ""))
+                st.link_button("View resume", signed_url)
+            except Exception:
+                st.caption("Resume link unavailable.")
             st.divider()
 
             
