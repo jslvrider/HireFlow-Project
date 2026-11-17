@@ -7,3 +7,10 @@ hireflow.db
 Resume_dataset/
 .vscode/
 test_processing.py
+# Terraform
+.terraform/
+*.tfstate
+*.tfstate.*
+*.tfvars
+crash.log
+cloud.env

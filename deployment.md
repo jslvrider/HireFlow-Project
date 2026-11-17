@@ -49,3 +49,4 @@ Things that broke and why. For example:
 -pypdf is an optional dependency, so it wasn’t installed automatically
 -The real key name goes only in source=; inside the container it’s always /secrets/key.json
 -Test every feature, because the untested one hides the broken setup
+-“Seed the cloud DB once. After that, cloud and local databases diverge, so never re-upload the local one.”
