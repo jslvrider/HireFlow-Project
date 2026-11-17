@@ -38,3 +38,11 @@ resource "google_service_account_iam_member" "builder_runtime" {
   role               = "roles/iam.serviceAccountUser"
   member             = "serviceAccount:${google_service_account.builder.email}"
 }
+
+# Manual `gcloud builds submit` uploads source to this auto-created bucket;
+# the builder needs to read it.
+resource "google_storage_bucket_iam_member" "builder_source" {
+  bucket = "${var.project_id}_cloudbuild"
+  role   = "roles/storage.objectViewer"
+  member = "serviceAccount:${google_service_account.builder.email}"
+}
