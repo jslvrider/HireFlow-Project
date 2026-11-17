@@ -1,0 +1,11 @@
+.env
+.git
+.vscode
+__pycache__
+*.pyc
+.pytest_cache
+tests
+Resume_dataset
+hireflow.db
+*.json
+terraform
