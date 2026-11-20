@@ -46,3 +46,28 @@ resource "google_storage_bucket_iam_member" "builder_source" {
   role   = "roles/storage.objectViewer"
   member = "serviceAccount:${google_service_account.builder.email}"
 }
+
+variable "github_repository" {
+  description = "Full resource name of the Cloud Build 2nd-gen linked repository."
+  type        = string
+}
+
+resource "google_cloudbuild_trigger" "deploy_main" {
+  name            = "hireflow-deploy-main"
+  location        = var.region
+  description     = "Test, build, push, and deploy on every push to main"
+  service_account = google_service_account.builder.id
+  filename        = "cloudbuild.yaml"
+
+  repository_event_config {
+    repository = var.github_repository
+    push {
+      branch = "^main$"
+    }
+  }
+
+  # Don't spend a 9-minute build on documentation-only changes
+  ignored_files = ["**/*.md"]
+
+  depends_on = [google_project_service.apis]
+}

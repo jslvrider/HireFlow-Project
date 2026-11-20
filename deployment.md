@@ -49,6 +49,10 @@ terraform apply, adding the secret, gcloud deploy apply, etc.
 - Only redo when keys change; each upload creates a new version, and
   Cloud Run reads "latest".
   -Cloud build.yaml provides the steps on how to create the build. 
+## manual deployment
+  -gcloud builds submit --config cloudbuild.yaml --substitutions=_TAG=manual-3 --service-account=projects/inner-bonus-327423/serviceAccounts/hireflow-builder@inner-bonus-327423.iam.gserviceaccount.com
+  -the gcloud builds submit command, and using a new _TAG each time
+  -Debugging in the cloud: log errors you catch (logging.exception), and read them with gcloud logging read ... logName:stderr
 
 
 ## Everyday workflow
@@ -68,3 +72,4 @@ Things that broke and why. For example:
 -in PowerShell; the cloud .env must not contain GOOGLE_APPLICATION_CREDENTIALS; seed the database once
 -Manual gcloud builds submit with a custom service account needs read access to the PROJECT_cloudbuild staging bucket.”
 -“Permission ≠ scope. Token Creator was granted, but the storage client’s token was scoped to storage only, so IAM refused to sign. Fakes in unit tests don’t catch scope problems; only the real cloud does.”
+-permission vs scope, quoting in PowerShell (\" doesn’t work), tracebacks being split into separate log lines
