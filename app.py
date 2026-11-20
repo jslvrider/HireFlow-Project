@@ -14,6 +14,7 @@ from services.ingestion import ingest_resume
 from utils.database import create_database
 from utils.upload_gcs_file import generate_signed_url
 from services.retrieval import run_resume_rag_pipeline
+import logging 
 
 st.set_page_config(page_title="Resume Uploader", page_icon="📄", layout="centered")
 
@@ -116,7 +117,8 @@ def render_search_section() -> None:
                 signed_url = generate_signed_url(candidate.get("file_link", ""))
                 st.link_button("View resume", signed_url)
             except Exception:
-                st.caption("Resume link unavailable.")
+                logging.exception("Signed URL generation failed for %s", candidate["file_link"])
+                st.caption("Resume link unavailable")
             st.divider()
 
             

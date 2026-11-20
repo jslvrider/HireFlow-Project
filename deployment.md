@@ -34,6 +34,21 @@ The exact commands, in order, to build everything from scratch:
 terraform apply, adding the secret, gcloud deploy apply, etc.
 -First create test files and run tests locally.
 -Local docker build is for testing the Dockerfile. Cloud Build builds the real images on every push to main.
+-Terraform folder contains files used for instructions on making the build. It designates the recources, permisssions, service accounts, secret locations, apis, project id , and region. 
+-Cloud build uses terraform instructions to create the build. 
+-- The resume bucket is referenced by name, not created, so
+  `terraform destroy` can never delete resumes.
+  ### Secret (added by hand)
+- Terraform creates the empty secret and grants read access to
+  hireflow-runtime only. I add the value myself:
+  `gcloud secrets versions add hireflow-env --data-file=cloud.env`
+- Why: if Terraform set the value, the keys would end up in the .tf
+  files (and git history), in terraform.tfstate (plain text), or in
+  plan output. Adding it by hand keeps keys only in my local file and
+  in Secret Manager (encrypted, access-controlled).
+- Only redo when keys change; each upload creates a new version, and
+  Cloud Run reads "latest".
+  -Cloud build.yaml provides the steps on how to create the build. 
 
 
 ## Everyday workflow
@@ -50,3 +65,5 @@ Things that broke and why. For example:
 -The real key name goes only in source=; inside the container it’s always /secrets/key.json
 -Test every feature, because the untested one hides the broken setup
 -“Seed the cloud DB once. After that, cloud and local databases diverge, so never re-upload the local one.”
+-in PowerShell; the cloud .env must not contain GOOGLE_APPLICATION_CREDENTIALS; seed the database once
+-Manual gcloud builds submit with a custom service account needs read access to the PROJECT_cloudbuild staging bucket.”
