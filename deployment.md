@@ -67,3 +67,4 @@ Things that broke and why. For example:
 -“Seed the cloud DB once. After that, cloud and local databases diverge, so never re-upload the local one.”
 -in PowerShell; the cloud .env must not contain GOOGLE_APPLICATION_CREDENTIALS; seed the database once
 -Manual gcloud builds submit with a custom service account needs read access to the PROJECT_cloudbuild staging bucket.”
+-“Permission ≠ scope. Token Creator was granted, but the storage client’s token was scoped to storage only, so IAM refused to sign. Fakes in unit tests don’t catch scope problems; only the real cloud does.”

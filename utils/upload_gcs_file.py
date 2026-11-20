@@ -4,9 +4,13 @@ import uuid
 from datetime import timedelta
 from pathlib import Path
 
+import google.auth
 from google.auth.transport.requests import Request
 from google.cloud import storage
 from google.oauth2 import service_account
+
+# signBlob (IAM signing) needs this scope; the storage client's token lacks it.
+CLOUD_PLATFORM_SCOPE = "https://www.googleapis.com/auth/cloud-platform"
 
 
 
@@ -51,15 +55,20 @@ def _signing_kwargs(client: storage.Client) -> dict:
 
     Service-account key credentials can sign locally, so they need nothing extra.
     Other credentials (e.g. Cloud Run's metadata-server identity) sign through the
-    IAM signBlob API, which needs the account email and a fresh access token.
+    IAM signBlob API, which needs the account email and an access token.
+
+    The client's own token is storage-scoped, which signBlob rejects
+    (ACCESS_TOKEN_SCOPE_INSUFFICIENT), so fresh cloud-platform-scoped
+    credentials are obtained for signing instead.
     """
     # The client exposes no public accessor for its credentials.
-    credentials = client._credentials
-    if isinstance(credentials, service_account.Credentials):
+    if isinstance(client._credentials, service_account.Credentials):
         return {}
 
-    if not credentials.valid or not credentials.token:
-        credentials.refresh(Request())
+    credentials, _ = google.auth.default(scopes=[CLOUD_PLATFORM_SCOPE])
+    # Refresh also resolves the real account email on Cloud Run, where it
+    # starts out as "default".
+    credentials.refresh(Request())
 
     email = getattr(credentials, "service_account_email", None)
     if not email:
