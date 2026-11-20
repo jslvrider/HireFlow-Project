@@ -124,7 +124,7 @@ def render_search_section() -> None:
             
 def main() -> None:
     create_database()
-    st.title("Resume Upload Portal")
+    st.title("HireFlow")
     render_login_section()
     st.divider()
     render_upload_section()
